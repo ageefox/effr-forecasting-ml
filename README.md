@@ -41,12 +41,4 @@ Each model was tuned and evaluated using RMSE and visualized through actual vs. 
 - The model struggled with predicting extreme rate changes due to limited historical precedent.
 - Richer features improved performance, but historical uniqueness of macro trends remains a challenge.
 
-## Project Structure
-effr-forecasting-ml/
-├── data/                  # Cleaned dataset(s)
-├── notebooks/             # Jupyter notebooks for EDA & modeling
-├── src/                   # Python scripts for preprocessing and modeling
-├── results/               # Visualizations and output graphs
-├── requirements.txt       # Python package dependencies
-├── .gitignore             # Ignored files
-└── README.md              # Project summary and instructions
+Contributors: Anastasia Galkova, Bakr Bouhaya
