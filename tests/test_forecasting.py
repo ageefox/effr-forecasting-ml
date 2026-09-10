@@ -4,8 +4,9 @@ import pandas as pd
 import pytest
 from effr_forecasting.data import TARGET, load_data, make_features
 from effr_forecasting.train import run
+from effr_forecasting.verify import compare_csv
 
-DATA = Path(__file__).resolve().parents[1] / "data/cleaned_effr_data.csv"
+DATA = Path(__file__).resolve().parents[1] / "data/effr_monthly.csv"
 
 
 def test_features_cannot_see_current_or_future_targets():
@@ -20,11 +21,10 @@ def test_features_cannot_see_current_or_future_targets():
     assert before.loc[cutoff, "effr_mean_3"] == pytest.approx(frame[TARGET].iloc[197:200].mean())
 
 
-def test_macro_data_is_excluded():
+def test_unrelated_columns_are_excluded():
     frame = load_data(DATA)
     before, _ = make_features(frame)
-    for col in frame.columns.difference([TARGET]):
-        frame[col] = np.nan
+    frame["unavailable_macro_value"] = np.arange(len(frame))
     after, _ = make_features(frame)
     pd.testing.assert_frame_equal(before, after)
     assert np.isfinite(before.to_numpy()).all()
@@ -68,5 +68,18 @@ def test_holdout_labels_do_not_affect_tuning(tmp_path):
     b = json.loads((tmp_path / "second/run.json").read_text())
     assert a['best_parameters'] == b['best_parameters']
     assert a['selected_by_training_cv'] == b['selected_by_training_cv']
+    assert a['data_source_series'] == 'H15/H15/RIFSPFF_N.M'
     assert a['train_end'] < a['test_start']
     assert all(f['train_end'] < f['validation_start'] for f in a['cv_folds'])
+    assert not any('time' in column for column in pd.read_csv(tmp_path / "first/ridge_cv.csv").columns)
+
+
+def test_artifact_comparison_uses_numeric_tolerance(tmp_path):
+    expected = tmp_path / "expected.csv"
+    actual = tmp_path / "actual.csv"
+    pd.DataFrame({"Model": ["Persistence"], "RMSE": [0.15255]}).to_csv(expected, index=False)
+    pd.DataFrame({"Model": ["Persistence"], "RMSE": [0.15260]}).to_csv(actual, index=False)
+    compare_csv(expected, actual, rtol=0.01, atol=0.001)
+    pd.DataFrame({"Model": ["Persistence"], "RMSE": [0.20]}).to_csv(actual, index=False)
+    with pytest.raises(AssertionError):
+        compare_csv(expected, actual, rtol=0.01, atol=0.001)

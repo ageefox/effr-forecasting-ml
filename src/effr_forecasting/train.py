@@ -27,6 +27,23 @@ def score(actual, predicted):
             "R2": float(r2_score(actual, predicted))}
 
 
+def stable_cv_results(search):
+    """Return model-selection evidence without machine-dependent timing data."""
+    raw = pd.DataFrame(search.cv_results_)
+    split_scores = sorted(
+        column for column in raw if column.startswith("split") and column.endswith("_test_score")
+    )
+    stable = pd.DataFrame({
+        "params": raw["params"].map(lambda value: json.dumps(value, sort_keys=True)),
+    })
+    for column in split_scores:
+        stable[column.replace("_test_score", "_RMSE")] = -raw[column]
+    stable["mean_RMSE"] = -raw["mean_test_score"]
+    stable["std_RMSE"] = raw["std_test_score"]
+    stable["rank"] = raw["rank_test_score"]
+    return stable
+
+
 def run(data: Path, output: Path, test_fraction=0.2, seed=42):
     if not 0.1 <= test_fraction <= 0.4:
         raise ValueError("test_fraction must be between 0.1 and 0.4")
@@ -38,7 +55,7 @@ def run(data: Path, output: Path, test_fraction=0.2, seed=42):
     cv = list(TimeSeriesSplit(n_splits=5).split(X_train))
     candidates = {
         "Ridge": (make_pipeline(StandardScaler(), Ridge()),
-                  {"ridge__alpha": [0.1, 1.0, 10.0, 100.0]}),
+                  {"ridge__alpha": np.logspace(-2, 3, 12).tolist()}),
         "RandomForest": (RandomForestRegressor(n_estimators=200, random_state=seed, n_jobs=1),
                          {"max_depth": [4, 8, None], "min_samples_leaf": [1, 3, 8]}),
     }
@@ -60,11 +77,12 @@ def run(data: Path, output: Path, test_fraction=0.2, seed=42):
     metrics.to_csv(output / "metrics.csv", index=False)
     predictions.to_csv(output / "predictions.csv", index_label="date")
     for name, search in searches.items():
-        pd.DataFrame(search.cv_results_).to_csv(output / f"{name.lower()}_cv.csv", index=False)
+        stable_cv_results(search).to_csv(output / f"{name.lower()}_cv.csv", index=False)
     importance = pd.Series(searches["RandomForest"].best_estimator_.feature_importances_, index=X.columns).sort_values()
     importance.to_csv(output / "feature_importance.csv", index_label="feature", header=["importance"])
     metadata = {
         "data_sha256": hashlib.sha256(data.read_bytes()).hexdigest(),
+        "data_source_series": "H15/H15/RIFSPFF_N.M",
         "python": platform.python_version(),
         "packages": {name: importlib.metadata.version(name) for name in ("numpy", "pandas", "scikit-learn", "matplotlib")},
         "seed": seed, "test_fraction": test_fraction, "horizon_months": 1,
