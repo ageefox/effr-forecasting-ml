@@ -1,0 +1,73 @@
+{
+  "data_sha256": "7321d491f2befee93b05317a446cbb17c66187e690ac9f44b9e64442bb41e14a",
+  "python": "3.12.0",
+  "packages": {
+    "numpy": "2.2.6",
+    "pandas": "2.2.3",
+    "scikit-learn": "1.6.1",
+    "matplotlib": "3.10.3"
+  },
+  "seed": 42,
+  "test_fraction": 0.2,
+  "horizon_months": 1,
+  "raw_rows": 752,
+  "warmup_rows": 12,
+  "train_rows": 592,
+  "test_rows": 148,
+  "train_start": "1955-07-01",
+  "train_end": "2004-10-01",
+  "test_start": "2004-11-01",
+  "test_end": "2017-02-01",
+  "selected_by_training_cv": "Persistence",
+  "best_parameters": {
+    "Ridge": {
+      "ridge__alpha": 1.0
+    },
+    "RandomForest": {
+      "max_depth": null,
+      "min_samples_leaf": 3
+    }
+  },
+  "features": [
+    "effr_lag_1",
+    "effr_lag_2",
+    "effr_lag_3",
+    "effr_lag_6",
+    "effr_lag_12",
+    "effr_mean_3",
+    "effr_std_3",
+    "effr_mean_6",
+    "effr_std_6",
+    "effr_mean_12",
+    "effr_std_12",
+    "effr_change"
+  ],
+  "cv_folds": [
+    {
+      "train_end": "1963-12-01",
+      "validation_start": "1964-01-01",
+      "validation_end": "1972-02-01"
+    },
+    {
+      "train_end": "1972-02-01",
+      "validation_start": "1972-03-01",
+      "validation_end": "1980-04-01"
+    },
+    {
+      "train_end": "1980-04-01",
+      "validation_start": "1980-05-01",
+      "validation_end": "1988-06-01"
+    },
+    {
+      "train_end": "1988-06-01",
+      "validation_start": "1988-07-01",
+      "validation_end": "1996-08-01"
+    },
+    {
+      "train_end": "1996-08-01",
+      "validation_start": "1996-09-01",
+      "validation_end": "2004-10-01"
+    }
+  ],
+  "evaluation": "Fixed fitted models; rolling one-month forecasts using previous observed EFFR. Not recursive multi-month forecasting."
+}
