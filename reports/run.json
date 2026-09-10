@@ -1,5 +1,6 @@
 {
-  "data_sha256": "7321d491f2befee93b05317a446cbb17c66187e690ac9f44b9e64442bb41e14a",
+  "data_sha256": "cc76d98a4fc1e4bbb0196e960515c415630422b05e53cfffe4e2e78c3e8b9444",
+  "data_source_series": "H15/H15/RIFSPFF_N.M",
   "python": "3.12.0",
   "packages": {
     "numpy": "2.2.6",
@@ -21,10 +22,10 @@
   "selected_by_training_cv": "Persistence",
   "best_parameters": {
     "Ridge": {
-      "ridge__alpha": 1.0
+      "ridge__alpha": 1.873817422860383
     },
     "RandomForest": {
-      "max_depth": null,
+      "max_depth": 8,
       "min_samples_leaf": 3
     }
   },
