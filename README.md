@@ -45,6 +45,12 @@ Five expanding time-series folds tune Ridge and Random Forest on the training pe
 
 The macroeconomic columns in the CSV are excluded because their original preparation includes interpolation and lacks release/vintage records. See the [methodology and leakage audit](docs/methodology.md) for the information timing, model selection rules and original implementation findings.
 
+### Why an autoregressive benchmark fits EFFR
+
+EFFR is the transaction-based overnight rate that the Federal Reserve steers within the FOMC's target range. It therefore tends to remain close to its recent level between policy changes and move in steps when the policy stance changes. That makes the previous month's EFFR an economically relevant baseline rather than a token comparison. The benchmark asks whether patterns in past EFFR add predictive value beyond that persistence. It does **not** claim to anticipate the macroeconomic information or FOMC decisions that cause the next policy change. See the [New York Fed's EFFR definition](https://www.newyorkfed.org/markets/reference-rates/effr) and [monetary-policy implementation overview](https://www.newyorkfed.org/markets/domestic-market-operations/monetary-policy-implementation).
+
+Monthly averaging also means a target observation can combine days before and after an FOMC decision. A policy-forecasting extension should therefore become meeting-aware and use the contemporaneous target range, real-time economic data vintages and market expectations such as federal funds futures. The current design is best interpreted as a leakage-safe test of short-run rate persistence, not as a structural model of Federal Reserve decisions.
+
 ## Saved artifacts
 
 - [Dated predictions](reports/predictions.csv) for every model and the baseline.

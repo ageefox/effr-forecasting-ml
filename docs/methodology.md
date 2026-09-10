@@ -10,6 +10,14 @@ Models are fitted once on the training block. Each later one-month prediction re
 
 RMSE and MAE are percentage points (multiply by 100 for basis points). R² is relative to the holdout mean and is not evidence of improvement over persistence. CV spans historical regimes unlike the holdout; compare models on the same dates. Impurity feature importance describes this fitted forest, not causal effects.
 
+## Economic rationale and scope
+
+EFFR is a volume-weighted measure of overnight federal funds transactions, while the FOMC establishes the target rate or range and the Federal Reserve implements policy to keep overnight rates near it. EFFR consequently has a policy-guided, persistent structure: it is often stable between policy actions and changes in steps when the policy stance changes. A persistence forecast is therefore a substantive economic benchmark. An autoregressive model earns its complexity only if rate-history patterns improve on that benchmark across unseen periods.
+
+This experiment measures short-run predictability in the realized monthly rate. It does not model the FOMC's reaction to inflation, employment or growth, and it does not claim to forecast policy decisions. A monthly average may include observations from both sides of an FOMC decision, so a model of policy changes should use meeting-level timing instead. A credible extension would predict the next target-range decision or future target midpoint using the prevailing range, meeting calendar, real-time macroeconomic vintages and market expectations available on the forecast date.
+
+This narrower scope is deliberate. The available macro columns cannot establish what a forecaster knew in real time, while lagged EFFR has an explicit publication and timing rule. The resulting negative finding—that Ridge and Random Forest do not clearly beat persistence—is economically plausible and is the primary benchmark result, not a failed attempt to obtain a more complex winner.
+
 ## Findings in the original implementation
 
 At base commit `45f9f94`, feature engineering retained unshifted raw macro columns. Feature ranking used all labels, including future test labels. Clipping quantiles, imputation and variance filtering were fitted before splitting. Chronological splitting later in training did not undo those leaks. Multiple training programs ran sequentially on import; file locations depended on the current directory. Plotting referenced undefined global variables. Data preparation required raw CSVs absent from the repository and linearly interpolated macro values using future endpoints.
