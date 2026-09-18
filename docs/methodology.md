@@ -8,6 +8,12 @@ The final 20% of usable dates are held out. Five expanding training folds select
 
 Models are fitted once on the training block. Each later one-month prediction receives the preceding observed EFFR, including earlier holdout observations. This is rolling one-step evaluation rather than a recursive forecast of the full holdout from one historical date. The same information rule applies within validation folds.
 
+## External validation
+
+The development dataset ends in February 2017. Before loading later observations, the feature list, Ridge penalty, Random Forest settings, and training-CV model choice were fixed in `reports/run.json`. The external run reads those settings, checks that the feature list has not changed, and refits the models on all usable development observations. It then forecasts each month from March 2017 through August 2026 under the same rolling one-step information rule.
+
+Uncertainty estimates compare Ridge and Random Forest with persistence on the same months. The reported difference is the persistence metric minus the candidate metric, so a positive value favors the candidate. A paired circular moving-block bootstrap resamples 12-month blocks 10,000 times and reports the 2.5th and 97.5th percentiles. The blocks preserve short-range dependence better than resampling individual months. These intervals describe variation within this historical sequence; they do not turn one external period into evidence about every possible future policy regime.
+
 RMSE and MAE are percentage points (multiply by 100 for basis points). R² is relative to the holdout mean and is not evidence of improvement over persistence. CV spans historical regimes unlike the holdout; compare models on the same dates. Impurity feature importance describes this fitted forest, not causal effects.
 
 Random Forest predictions average training responses within terminal leaves and therefore cannot extrapolate beyond the training target range. The training target has a 0.63% floor, while the holdout reaches 0.07% in the post-2008 near-zero-rate regime. This mechanism explains the model's visibly elevated predictions during that period and is a central reason for its poor holdout performance.
@@ -18,7 +24,7 @@ EFFR is a volume-weighted measure of overnight federal funds transactions, while
 
 This experiment measures short-run predictability in the realized monthly rate. A model of policy changes would need meeting-level timing, the prevailing target range, real-time macroeconomic vintages and market expectations available on the forecast date.
 
-The available macro columns cannot establish what a forecaster knew in real time, while lagged EFFR has a clear timing rule. The finding that Ridge and Random Forest fail to beat persistence is economically plausible for this series.
+The available macro columns cannot establish what a forecaster knew in real time, while lagged EFFR has a clear timing rule. Ridge's mixed result across the two evaluation periods and Random Forest's consistent weakness both reinforce the value of a strong persistence baseline.
 
 ## Why the original pipeline was replaced
 
@@ -28,8 +34,8 @@ The current package replaces that path with explicit inputs, past-only features 
 
 ## Data provenance and limits
 
-The checked-in CSV has 752 consecutive monthly observations from July 1954 through February 2017. It is an EFFR-only snapshot of the Federal Reserve Board's H.15 monthly series `H15/H15/RIFSPFF_N.M`; `data/README.md` records the source, unit, frequency, retrieval date, transformation, usage terms and official links. The data are monthly averages of daily figures and are capped at February 2017 to preserve the study period.
+The development CSV has 752 consecutive monthly observations from July 1954 through February 2017. The external CSV adds 114 observations from March 2017 through August 2026. Both are EFFR-only snapshots of the Federal Reserve Board's H.15 monthly series `H15/H15/RIFSPFF_N.M`; `data/README.md` records the source, unit, frequency, retrieval dates, transformations, file hashes, usage terms, and official links. January and February 2017 were downloaded with the later package and matched against the end of the development file before being removed from the external period.
 
 The earlier combined dataset attributed its inputs broadly to FRED, BLS and Kaggle without exact series identifiers, extraction dates, source URLs or vintage records. Those unused macro columns are no longer redistributed. Adding macroeconomic predictors in future work requires fresh, documented, vintage-aware sources rather than the earlier interpolated values.
 
-The holdout predates recent rate cycles and was inspected during earlier project work. Stronger external validation would require newer observations, documented release timing and vintage-aware macro inputs.
+The study remains univariate and monthly. It measures how fixed autoregressive rules behave across the observed rate cycles, not whether they can anticipate policy decisions. A policy-forecasting study would need a new design and separately documented, vintage-aware inputs.

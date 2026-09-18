@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 from .train import run
+from .external import run_external
 
 
 CSV_TOLERANCES = {
@@ -16,6 +17,12 @@ CSV_TOLERANCES = {
     "ridge_cv.csv": (0.01, 0.01),
     "randomforest_cv.csv": (0.01, 0.01),
     "feature_importance.csv": (0.10, 0.005),
+}
+
+EXTERNAL_CSV_TOLERANCES = {
+    "metrics.csv": (0.01, 0.001),
+    "predictions.csv": (0.01, 0.01),
+    "uncertainty.csv": (0.01, 0.002),
 }
 
 
@@ -40,7 +47,7 @@ def compare_metadata(expected_path: Path, actual_path: Path):
     if expected_python != (3, 12) or actual_python != (3, 12):
         raise AssertionError("Published and regenerated artifacts must use Python 3.12")
     if expected != actual:
-        raise AssertionError("Stable run metadata differs from reports/run.json")
+        raise AssertionError(f"Stable run metadata differs from {expected_path}")
 
 
 def verify(data: Path, expected: Path):
@@ -53,12 +60,37 @@ def verify(data: Path, expected: Path):
     print("Published benchmark artifacts match a fresh run.")
 
 
+def verify_external(
+    development_data: Path,
+    external_data: Path,
+    frozen_design: Path,
+    expected: Path,
+):
+    with tempfile.TemporaryDirectory(prefix="effr-external-verify-") as directory:
+        actual = Path(directory)
+        run_external(development_data, external_data, frozen_design, actual)
+        for filename, (rtol, atol) in EXTERNAL_CSV_TOLERANCES.items():
+            compare_csv(expected / filename, actual / filename, rtol, atol)
+        compare_metadata(expected / "run.json", actual / "run.json")
+    print("Published external-validation artifacts match a fresh run.")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data", type=Path, required=True, help="Path to the monthly EFFR CSV")
     parser.add_argument("--expected", type=Path, default=Path("reports"))
+    parser.add_argument("--external-data", type=Path)
+    parser.add_argument("--external-expected", type=Path, default=Path("reports/external"))
+    parser.add_argument("--frozen-design", type=Path, default=Path("reports/run.json"))
     args = parser.parse_args()
     verify(args.data, args.expected)
+    if args.external_data:
+        verify_external(
+            args.data,
+            args.external_data,
+            args.frozen_design,
+            args.external_expected,
+        )
 
 
 if __name__ == "__main__":
