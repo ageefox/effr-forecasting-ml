@@ -139,14 +139,14 @@ def run_external(
     uncertainty_rows = []
     actual = predictions["Actual"].to_numpy()
     baseline = predictions["Persistence"].to_numpy()
-    for model_number, name in enumerate(("Ridge", "RandomForest")):
+    for name in ("Ridge", "RandomForest"):
         intervals = paired_block_intervals(
             actual,
             baseline,
             predictions[name].to_numpy(),
             samples=bootstrap_samples,
             block_length=block_length,
-            seed=seed + model_number,
+            seed=seed,
         )
         for metric, (difference, lower, upper) in intervals.items():
             uncertainty_rows.append({
@@ -208,9 +208,32 @@ def run_external(
     rolling_mae = predictions.drop(columns="Actual").sub(predictions["Actual"], axis=0).abs().rolling(12).mean()
     plt.style.use("seaborn-v0_8-whitegrid")
     fig, axes = plt.subplots(2, 1, figsize=(11, 8), sharex=True, height_ratios=(2, 1))
-    predictions.plot(ax=axes[0], linewidth=1.4)
+    colors = {
+        "Actual": "#222222",
+        "Persistence": "#4c78a8",
+        "Ridge": "#f58518",
+        "RandomForest": "#54a24b",
+    }
+    labels = {"RandomForest": "Random Forest"}
+    for name in predictions:
+        axes[0].plot(
+            predictions.index,
+            predictions[name],
+            label=labels.get(name, name),
+            color=colors[name],
+            linewidth=1.4,
+        )
+    axes[0].legend()
     axes[0].set(title="EFFR forecasts on the external period", ylabel="EFFR (%)", xlabel="")
-    rolling_mae.plot(ax=axes[1], linewidth=1.4)
+    for name in rolling_mae:
+        axes[1].plot(
+            rolling_mae.index,
+            rolling_mae[name],
+            label=labels.get(name, name),
+            color=colors[name],
+            linewidth=1.4,
+        )
+    axes[1].legend()
     axes[1].set(title="Trailing 12-month mean absolute error", ylabel="Percentage points", xlabel="Target month")
     fig.tight_layout()
     fig.savefig(output / "forecast.png", dpi=160)

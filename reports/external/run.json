@@ -1,0 +1,55 @@
+{
+  "development_data_sha256": "cc76d98a4fc1e4bbb0196e960515c415630422b05e53cfffe4e2e78c3e8b9444",
+  "external_data_sha256": "3f7bd5aab67d3952b7ae814d795f74adb04c6ecfa88cf8fc77206a9531e6d257",
+  "frozen_design_sha256": "8a6d05e9cfcf3ed2da0bb3d83944996c3b0bcb3b6965ccace80069ab59e2e427",
+  "data_source_series": "H15/H15/RIFSPFF_N.M",
+  "python": "3.12.0",
+  "packages": {
+    "numpy": "2.2.6",
+    "pandas": "2.2.3",
+    "scikit-learn": "1.6.1",
+    "matplotlib": "3.10.3"
+  },
+  "seed": 42,
+  "horizon_months": 1,
+  "training_rows": 740,
+  "external_rows": 114,
+  "training_start": "1955-07-01",
+  "training_end": "2017-02-01",
+  "external_start": "2017-03-01",
+  "external_end": "2026-08-01",
+  "frozen_training_cv_choice": "Persistence",
+  "fixed_parameters": {
+    "Ridge": {
+      "ridge__alpha": 1.873817422860383
+    },
+    "RandomForest": {
+      "n_estimators": 200,
+      "max_depth": 8,
+      "min_samples_leaf": 3,
+      "random_state": 42
+    }
+  },
+  "features": [
+    "effr_lag_1",
+    "effr_lag_2",
+    "effr_lag_3",
+    "effr_lag_6",
+    "effr_lag_12",
+    "effr_mean_3",
+    "effr_std_3",
+    "effr_mean_6",
+    "effr_std_6",
+    "effr_mean_12",
+    "effr_std_12",
+    "effr_change"
+  ],
+  "uncertainty": {
+    "method": "paired circular moving-block bootstrap",
+    "confidence_level": 0.95,
+    "samples": 10000,
+    "block_length_months": 12,
+    "interpretation": "Positive metric differences favor the candidate over persistence."
+  },
+  "evaluation": "Frozen models refitted through February 2017; rolling one-month forecasts use the previous observed EFFR. No external observations were used for model selection."
+}
