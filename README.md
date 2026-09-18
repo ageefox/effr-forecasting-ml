@@ -1,14 +1,28 @@
 # Forecasting the Effective Federal Funds Rate
 
-A reproducible study of **one-month-ahead EFFR forecasts**, comparing a persistence baseline, Ridge regression and Random Forest on historical monthly data. The project emphasizes chronological evaluation, past-only features and honest baseline comparisons.
+A reproducible study of one-month-ahead EFFR forecasts using a persistence baseline, Ridge regression, and Random Forest. The models use lagged rates only, so every forecast has a clear information cutoff.
 
-**Main finding:** repeating the previous month's rate wins on training cross-validation. Ridge nearly matches persistence on holdout RMSE but has higher MAE; Random Forest performs substantially worse. Model complexity does not guarantee better forecasts.
+The model design was developed on data through February 2017 and then frozen. A second Federal Reserve snapshot, covering March 2017 through August 2026, provides the final external test.
 
-![Monthly EFFR forecasts on the holdout](reports/forecast.png)
+**Main finding:** Ridge has the lowest external-period RMSE, at **0.1606 percentage points** versus **0.1922** for persistence. Its MAE advantage is much smaller, and the uncertainty interval includes zero. Random Forest remains worse than both simpler approaches.
+
+![EFFR forecasts on the external period](reports/external/forecast.png)
+
+## External validation
+
+All features and hyperparameters come from the earlier benchmark. The models are refitted on every usable observation through February 2017, then evaluated on 114 untouched monthly observations. Each prediction uses the rate observed in the previous month; no later-period values are used for fitting or model selection.
+
+- **Persistence:** RMSE **0.1922**, MAE **0.0996**, R² **0.9894**.
+- **Ridge:** RMSE **0.1606**, MAE **0.0934**, R² **0.9926**.
+- **Random Forest:** RMSE **0.2368**, MAE **0.1393**, R² **0.9839**.
+
+RMSE and MAE are percentage points. For scale, Ridge's RMSE is about 16.1 basis points and persistence's is about 19.2 basis points.
+
+A paired moving-block bootstrap preserves short runs of neighboring months when estimating uncertainty. Ridge improves RMSE over persistence by **0.0317 percentage points** (95% interval **0.0070 to 0.0568**). Its MAE improvement is **0.0062** (95% interval **−0.0174 to 0.0335**), so that smaller difference is not clearly distinguishable from zero. Full results are in [metrics.csv](reports/external/metrics.csv) and [uncertainty.csv](reports/external/uncertainty.csv).
 
 ## Reproduce the results
 
-Use Python **3.12** for the recorded environment. From a fresh checkout:
+Use Python **3.12**. Both official-source data snapshots are included, so the run does not need an API key or network access.
 
 ```bash
 git clone https://github.com/ageefox/effr-forecasting-ml.git
@@ -18,69 +32,52 @@ source .venv/bin/activate
 python -m pip install -r requirements-lock.txt
 python -m pip install -e . --no-deps
 python -m pytest -q
+
 effr-train --data data/effr_monthly.csv --output reports
-effr-verify --data data/effr_monthly.csv --expected reports
+effr-external \
+  --development-data data/effr_monthly.csv \
+  --external-data data/effr_external.csv \
+  --frozen-design reports/run.json \
+  --output reports/external
+effr-verify \
+  --data data/effr_monthly.csv \
+  --expected reports \
+  --external-data data/effr_external.csv \
+  --external-expected reports/external
 ```
 
-On Windows, activate with `.venv\Scripts\Activate.ps1` in PowerShell. The official-source CSV snapshot is included: no API keys or downloads are needed for training. The run is headless and saves figures rather than opening plot windows. A full run typically takes under a few minutes, depending on hardware.
+On Windows, activate with `.venv\Scripts\Activate.ps1` in PowerShell. The package commands can also be run as Python modules. Direct dependencies are listed in `pyproject.toml`; `requirements-lock.txt` records the tested environment.
 
-The package also supports `python -m effr_forecasting.train`. Input and output paths are explicit, while `--test-fraction` and `--seed` default to `0.2` and `42`. Direct dependencies live in `pyproject.toml`; `requirements-lock.txt` records the tested environment.
+## Forecast design
 
-## Recorded results
+For target month *t*, the inputs are EFFR lags at 1, 2, 3, 6, and 12 months; trailing means and standard deviations over 3, 6, and 12 months; and the preceding monthly change. Every input ends at *t−1*.
 
-The CSV contains **752 monthly observations**, July 1954–February 2017. After a fixed 12-month feature warm-up, training uses **592 months** (July 1955–October 2004) and the chronological holdout uses **148 months** (November 2004–February 2017).
+The development benchmark uses a chronological 80/20 split and five expanding training folds. Scaling for Ridge is fitted inside each fold. Training CV selected persistence; it also chose the Ridge penalty and Random Forest settings carried into external validation. The later data were opened only after those choices were fixed.
 
-Metrics below come from the checked-in [metrics.csv](reports/metrics.csv). RMSE and MAE are **percentage points**, not relative percentages; 0.15 percentage points equals 15 basis points.
+This is a rolling one-step evaluation. Earlier observations in an evaluation period become available to predict the next month, just as they would in regular monthly forecasting. It is not a recursive forecast of an entire decade from a single starting date.
 
-- **Persistence:** CV RMSE **0.4968**; holdout RMSE **0.1526**, MAE **0.0700**, R² **0.9934**.
-- **Ridge:** CV RMSE **0.5632**; holdout RMSE **0.1535**, MAE **0.1080**, R² **0.9933**.
-- **Random Forest:** CV RMSE **1.2579**; holdout RMSE **0.7514**, MAE **0.6569**, R² **0.8396**.
+The development holdout results were:
 
-Persistence is selected using training CV and also has slightly lower holdout RMSE and MAE than Ridge. The difference is small, and the high R² values largely reflect persistent rate levels. The original Random Forest result does not hold under chronological evaluation.
+- **Persistence:** CV RMSE **0.4968**; holdout RMSE **0.1526**, MAE **0.0700**.
+- **Ridge:** CV RMSE **0.5632**; holdout RMSE **0.1535**, MAE **0.1080**.
+- **Random Forest:** CV RMSE **1.2579**; holdout RMSE **0.7514**, MAE **0.6569**.
 
-Random Forest also illustrates a regime-change limitation: its predictions are averages of training targets and cannot extrapolate below the training response range. The training target never falls below 0.63%, while the holdout reaches 0.07% during the post-2008 near-zero-rate regime.
+Random Forest could not extrapolate below the training-period rate floor, which explains much of its poor performance during the post-2008 near-zero-rate period. The external period contains a different mix of rising, near-zero, and falling rates; Ridge's lower RMSE there is evidence that the linear autoregressive features can soften errors around larger monthly moves.
 
-## Forecasting method
+See [methodology.md](docs/methodology.md) for the forecast timing, leakage audit, and uncertainty procedure. Source details and file hashes are in [data/README.md](data/README.md).
 
-The prediction for month t uses only EFFR observations through t−1, assuming the prior monthly observation has been released early in month t. Features include lags at 1, 2, 3, 6 and 12 months; trailing 3-, 6- and 12-month means and standard deviations; and the preceding monthly change.
+## Outputs
 
-Five expanding time-series folds tune Ridge and Random Forest on the training period. Ridge scaling is fitted within each fold. The final models are then fitted once on the training block. During the holdout, each one-step forecast uses previous observed rates, including earlier holdout observations, so the result is a **rolling one-step evaluation**.
+- `reports/` contains the development split's predictions, model-selection results, feature importance, figures, and run metadata.
+- `reports/external/` contains dated external predictions, metrics, uncertainty intervals, the final figure, and run metadata.
+- `tests/` checks feature timing, split isolation, data continuity, frozen parameters, dated outputs, and deterministic uncertainty estimates.
+- GitHub Actions reruns the tests and both evaluations, then compares regenerated artifacts with the committed results.
 
-The earlier project's macroeconomic columns are excluded because their original preparation includes interpolation and lacks release/vintage records. The current dataset contains only the official H.15 EFFR series used by the benchmark. See the [data source record](data/README.md) and [methodology and leakage audit](docs/methodology.md).
+## Scope
 
-### Why an autoregressive benchmark fits EFFR
+EFFR is closely guided by the Federal Reserve's target rate or range, so persistence is a meaningful benchmark. This project studies short-run predictability in the realized monthly rate. It does not attempt to anticipate FOMC decisions; that would require meeting dates, real-time macroeconomic vintages, the target range, and market expectations available on each forecast date.
 
-EFFR is the transaction-based overnight rate that the Federal Reserve steers toward the FOMC's target rate or range. It tends to remain close to its recent level between policy changes and move in steps when the policy stance changes. The previous month's rate is therefore a meaningful baseline for testing whether historical patterns add predictive value. See the [New York Fed's EFFR definition](https://www.newyorkfed.org/markets/reference-rates/effr) and [monetary-policy implementation overview](https://www.newyorkfed.org/markets/domestic-market-operations/monetary-policy-implementation).
-
-Because monthly averages can combine days before and after an FOMC decision, a future policy model should use meeting dates, real-time economic data, the prevailing target range and market expectations. This project stays focused on short-run persistence in the realized rate.
-
-## Saved artifacts
-
-- [Dated predictions](reports/predictions.csv) for every model and the baseline.
-- [Run metadata](reports/run.json): data SHA-256, package versions, seed, split dates, feature list, CV boundaries and selected parameters.
-- [Ridge CV results](reports/ridge_cv.csv) and [Random Forest CV results](reports/randomforest_cv.csv), including every searched configuration.
-- [Feature importance](reports/feature_importance.csv) and the figure below. Impurity importance is descriptive, not causal.
-
-![Training feature importance](reports/feature_importance.png)
-
-## Project layout
-
-```text
-data/effr_monthly.csv       Official H.15 historical data snapshot
-src/effr_forecasting/       Import-safe data validation, features and training CLI
-tests/                     Temporal integrity and pipeline regression checks
-reports/                   Reproduced metrics, predictions, metadata and figures
-docs/methodology.md        Forecast design, leakage audit and data limitations
-.github/workflows/ci.yml   Tests and full training smoke run
-```
-
-Tests cover past-only features, exclusion of unrelated inputs, invalid data handling, sorting and invariance of tuning to altered holdout labels. CI also reruns the benchmark and verifies the published artifacts.
-
-## Limitations and next research steps
-
-The benchmark dataset is the Federal Reserve Board's H.15 monthly EFFR series, documented in [data/README.md](data/README.md). Data end in 2017, and the holdout was examined during earlier project work, so it should be treated as a historical portfolio benchmark rather than fresh external validation.
-
-A meaningful extension would obtain documented newer observations for external validation, then add macroeconomic features using historical release dates and vintages. Simply lagging the existing interpolated macro columns would not establish real-time validity.
+The study is complete. The feature set, models, evaluation periods, and published results are frozen so the repository remains a reproducible record rather than an expanding collection of experiments.
 
 ## Contributors and license
 
