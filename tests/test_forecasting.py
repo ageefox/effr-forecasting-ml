@@ -3,10 +3,13 @@ import numpy as np
 import pandas as pd
 import pytest
 from effr_forecasting.data import TARGET, load_data, make_features
+from effr_forecasting.external import paired_block_intervals, run_external
 from effr_forecasting.train import run
 from effr_forecasting.verify import compare_csv
 
 DATA = Path(__file__).resolve().parents[1] / "data/effr_monthly.csv"
+EXTERNAL_DATA = Path(__file__).resolve().parents[1] / "data/effr_external.csv"
+FROZEN_DESIGN = Path(__file__).resolve().parents[1] / "reports/run.json"
 
 
 def test_features_cannot_see_current_or_future_targets():
@@ -83,3 +86,43 @@ def test_artifact_comparison_uses_numeric_tolerance(tmp_path):
     pd.DataFrame({"Model": ["Persistence"], "RMSE": [0.20]}).to_csv(actual, index=False)
     with pytest.raises(AssertionError):
         compare_csv(expected, actual, rtol=0.01, atol=0.001)
+
+
+def test_external_run_uses_the_recorded_design_and_dates(tmp_path):
+    import json
+
+    development = load_data(DATA)
+    external = load_data(EXTERNAL_DATA)
+    assert development.index.max() + pd.offsets.MonthBegin(1) == external.index.min()
+
+    metrics = run_external(
+        DATA,
+        EXTERNAL_DATA,
+        FROZEN_DESIGN,
+        tmp_path,
+        bootstrap_samples=100,
+    )
+    metadata = json.loads((tmp_path / "run.json").read_text())
+    frozen = json.loads(FROZEN_DESIGN.read_text())
+    predictions = pd.read_csv(tmp_path / "predictions.csv", parse_dates=["date"])
+
+    assert list(metrics.Model) == ["Persistence", "Ridge", "RandomForest"]
+    assert metadata["training_end"] == "2017-02-01"
+    assert metadata["external_start"] == "2017-03-01"
+    assert metadata["external_end"] == "2026-08-01"
+    assert metadata["external_rows"] == len(external) == len(predictions)
+    assert metadata["features"] == frozen["features"]
+    assert metadata["fixed_parameters"]["Ridge"] == frozen["best_parameters"]["Ridge"]
+    assert predictions.date.tolist() == external.index.tolist()
+
+
+def test_paired_block_intervals_are_reproducible():
+    actual = np.arange(24, dtype=float)
+    persistence = actual + np.tile([1.0, -1.0], 12)
+    candidate = actual + 0.25
+    first = paired_block_intervals(actual, persistence, candidate, samples=200, block_length=4, seed=7)
+    second = paired_block_intervals(actual, persistence, candidate, samples=200, block_length=4, seed=7)
+
+    assert first == second
+    assert first["RMSE"][0] > 0
+    assert first["MAE"][0] > 0
