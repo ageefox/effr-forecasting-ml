@@ -25,7 +25,7 @@ A paired moving-block bootstrap preserves short runs of neighboring months when 
 Use Python **3.12**. Both official-source data snapshots are included, so the run does not need an API key or network access.
 
 ```bash
-git clone https://github.com/ageefox/effr-forecasting-ml.git
+git clone https://github.com/agalkova/effr-forecasting-ml.git
 cd effr-forecasting-ml
 python3 -m venv .venv
 source .venv/bin/activate
